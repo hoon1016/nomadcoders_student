@@ -12,23 +12,44 @@ def extract_indeed_pages():
   links = pagination.find_all('a')
   pages = []
 
-  for link in links[:-1]:
+  for link in links[0:-1]:
       pages.append(int(link.string))
   max_page = pages[-1]
   return max_page
 
-def extract_indeed_jobs(last_pages):
+def extract_job(html):
+  title = html.select_one('.jobTitle>span').string
+  company = html.find("span", {"class":"companyName"})
+  company_anchor = company.find("a")
+
+  if company_anchor is not None:
+    company = str(company_anchor.string)
+  else:
+    company = str(company.string)
+
+
+  location = html.select_one("pre > div").text
+  job_id = html.parent['data-jk']
+  return {
+  'title': title,
+  'company': company,
+  'location': location,
+  'link': f"https://www.indeed.com/viewjob?jk={job_id}&from=web&vjs=3"
+  }
+
+
+def extract_indeed_jobs(last_page):
   jobs = []
-  for page in range(last_pages):
-    result = requests.get(f"{URL}&start={page * LIMIT}")
-    soup = BeautifulSoup(result.text, "html.parser")
-    results = soup.find_all("h2", {"class": "jobTitle"})
-    for h2_item in results:
-      all_spans = h2_item.find_all("span")
-      for span_item in all_spans:
-        if span_item.get("title") is not None:
-          print(span_item.get("title"))
-          jobs.append(span_item.get("title"))
+  for page in range(last_page): #page는 0부터 시작
+    print(f"Scrapping page: {page}")
+  result = requests.get(f"{URL}&start={page*LIMIT}")
+
+  soup = BeautifulSoup(result.text,"html.parser")
+  results = soup.find_all("div", {"class":"slider_container"})
+
+  for result in results:
+    job = extract_job(result)
+    jobs.append(job)
   return jobs
 
 #1. 모든 a 태그 검색
